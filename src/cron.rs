@@ -57,7 +57,7 @@ impl Cron {
                 `title` VARCHAR(200) NOT NULL COLLATE 'utf8mb4_unicode_ci',
                 `slug` VARCHAR(200) NOT NULL COLLATE 'utf8mb4_unicode_ci',
                 `caption` VARCHAR(2000) NOT NULL COLLATE 'utf8mb4_unicode_ci',
-                `description` VARCHAR(10000) NOT NULL COLLATE 'utf8mb4_unicode_ci',
+                `description` TEXT NOT NULL COLLATE 'utf8mb4_unicode_ci',
                 `channel` VARCHAR(50) NOT NULL COLLATE 'utf8mb4_unicode_ci',
                 `link` VARCHAR(500) NOT NULL COLLATE 'utf8mb4_unicode_ci',
                 `canonical_link` VARCHAR(500) NOT NULL COLLATE 'utf8mb4_unicode_ci',
