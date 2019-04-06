@@ -6,7 +6,7 @@ use std::string::String;
 use std::thread;
 use std::time::Duration;
 
-use crate::roosterteeth::Videos;
+use crate::roosterteeth::{Shows, Videos};
 
 // Sleep time in ms between requests for dumping the database.
 const SLEEP_TIME: u64 = 1500;
@@ -26,12 +26,10 @@ impl Cron {
     pub fn init<'a>(addr: &str, auth: &str) -> Self {
         let pool = Pool::new(format!("mysql://{}@{}", auth, addr)).unwrap();
 
-        /*
         pool.prep_exec(
             r"CREATE TABLE IF NOT EXISTS roosterteeth.shows (
                 `id` INT UNSIGNED NOT NULL,
-                `uuid` CHAR(36) NOT NULL COLLATE 'utf8mb4_unicode_ci',
-                `date` DATE NOT NULL,
+                `last_update` DATETIME NOT NULL,
                 `title` VARCHAR(200) NOT NULL COLLATE 'utf8mb4_unicode_ci',
                 `slug` VARCHAR(200) NOT NULL COLLATE 'utf8mb4_unicode_ci',
                 `summary` VARCHAR(1000) NOT NULL COLLATE 'utf8mb4_unicode_ci',
@@ -40,8 +38,8 @@ impl Cron {
                 `canonical_link` VARCHAR(500) NOT NULL COLLATE 'utf8mb4_unicode_ci',
                 `seasons` SMALLINT UNSIGNED NOT NULL,
                 `episodes` SMALLINT UNSIGNED NOT NULL,
-                `image` VARCHAR(500) NOT NULL COLLATE 'utf8mb4_unicode_ci',
-                UNIQUE INDEX `Index 1` (`uuid`)
+                `image` VARCHAR(500) COLLATE 'utf8mb4_unicode_ci',
+                UNIQUE INDEX `Index 1` (`slug`)
             )
             COLLATE='utf8mb4_unicode_ci'
             ENGINE=InnoDB
@@ -49,7 +47,6 @@ impl Cron {
             (),
         )
         .unwrap();
-        */
 
         pool.prep_exec(
             r"CREATE TABLE IF NOT EXISTS roosterteeth.episodes (
@@ -111,7 +108,7 @@ impl Cron {
         self.log("Updating RoosterTeeth database.");
 
         self.process_episodes(API_EPISODE_URL.to_string());
-        //self.process_shows();
+        self.process_shows();
     }
 
     // Dangerous function!
@@ -141,7 +138,7 @@ impl Cron {
             pages = body.pagination.total_pages;
 
             self.log(format!(
-                "Dumping RoosterTeeth channel '{}', containing {} pages",
+                "Dumping channel '{}', containing {} pages",
                 chan, pages
             ));
 
@@ -153,50 +150,37 @@ impl Cron {
         self.log("cron::dump has ended.");
     }
 
-    /*
-    // TODO: Refactor into proper structs
     fn process_shows(&self) {
-        let body = ::reqwest::get(API_SHOW_URL).unwrap().text().unwrap();
-
-        let d: Value = ::serde_json::from_str(&body).unwrap();
+        let body: Shows = ::reqwest::get(API_SHOWS_URL).unwrap().json().unwrap();
 
         let mut img: String;
-        let mut date: String;
 
-        let blank = String::new();
-
-        for mut stmt in self.pool.prepare("INSERT INTO roosterteeth.shows (id, uuid, date, title, slug, summary, channel, link, canonical_link, seasons, episodes, image) VALUES(:id, :uuid, :date, :title, :slug, :summary, :channel, :link, :canonical_link, :seasons, :episodes, :image) ON DUPLICATE KEY UPDATE date=:date, seasons=:seasons, episodes=:episodes").into_iter() {
-            for v in d["data"].as_array().unwrap().iter() {
-                img = blank.clone(); // Assign a blank string as initialization of img is 'conditional'
-                for i in v["included"]["images"].as_array().unwrap().iter() {
-                    if i["attributes"]["image_type"] == "title_card" {
-                        img = fix_string(&i["attributes"]["small"]);
+        for mut stmt in self.pool.prepare("INSERT INTO roosterteeth.shows (id, last_update, title, slug, summary, channel, link, canonical_link, seasons, episodes, image) VALUES(:id, :last_update, :title, :slug, :summary, :channel, :link, :canonical_link, :seasons, :episodes, :image) ON DUPLICATE KEY UPDATE last_update=:last_update, seasons=:seasons, episodes=:episodes").into_iter() {
+            for v in &body.data {
+                img = String::new();
+                for i in &v.included.images {
+                    if i.attributes.image_type == "title_card" {
+                        img = i.attributes.large.clone();
                         break;
                     }
                 }
 
-                date = fix_string(&v["attributes"]["last_episode_golive_at"]);
-                date = String::from(&date[..10]);
-
-                // Same as above, id is stored as 2^24 rather than native rust type 2^32
                 stmt.execute(params!{
-                    "id" => v["id"].as_u64().unwrap() as u32,
-                    "uuid" => fix_string(&v["uuid"]),
-                    "date" => date,
-                    "title" => fix_string(&v["attributes"]["title"]),
-                    "slug" => fix_string(&v["attributes"]["slug"]),
-                    "summary" => fix_string(&v["attributes"]["summary"]),
-                    "channel" => fix_string(&v["attributes"]["channel_slug"]),
-                    "link" => fix_string(&v["links"]["self"]),
-                    "canonical_link" => fix_string(&v["canonical_links"]["self"]),
-                    "seasons" => v["attributes"]["season_count"].as_u64().unwrap() as u16,
-                    "episodes" => v["attributes"]["episode_count"].as_u64().unwrap() as u16,
-                    "image" => img,
+                    "id" => &v.id,
+                    "last_update" => &v.attributes.last_update[..16],
+                    "title" => &v.attributes.title,
+                    "slug" => &v.attributes.slug,
+                    "summary" => &v.attributes.summary,
+                    "channel" => &v.attributes.channel_slug,
+                    "link" => &v.links.own,
+                    "canonical_link" => &v.canonical_links.own,
+                    "seasons" => &v.attributes.season_count,
+                    "episodes" => &v.attributes.episode_count,
+                    "image" => &img,
                 }).unwrap();
             }
         }
     }
-    */
 
     fn process_episodes(&mut self, url: String) {
         let body: Videos = ::reqwest::get(&url).unwrap().json().unwrap();

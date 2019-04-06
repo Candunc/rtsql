@@ -93,3 +93,66 @@ pub struct VideoImageAttributes {
     pub medium: String,
     pub large: String,
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct Shows {
+    pub data: Vec<ShowInstance>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ShowInstance {
+    pub id: u16,
+    pub attributes: ShowAttributes,
+    pub links: ShowLinks,
+    pub canonical_links: ShowCanonical,
+    pub included: ShowIncluded,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ShowAttributes {
+    pub title: String,
+    pub slug: String,
+    pub is_sponsors_only: bool,
+    pub updated_at: String,
+    pub published_at: String,
+    pub summary: String,
+    pub channel_slug: String,
+    pub season_count: u16,
+    pub episode_count: u16,
+    #[serde(rename = "last_episode_golive_at")]
+    pub last_update: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ShowLinks {
+    #[serde(rename = "self")]
+    pub own: String,
+    pub seasons: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ShowCanonical {
+    #[serde(rename = "self")]
+    pub own: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ShowIncluded {
+    pub images: Vec<ShowImage>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ShowImage {
+    pub id: u32,
+    pub attributes: ShowImageAttributes,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ShowImageAttributes {
+    pub thumb: String,
+    pub small: String,
+    pub medium: String,
+    pub large: String,
+    pub orientation: String,
+    pub image_type: String,
+}
