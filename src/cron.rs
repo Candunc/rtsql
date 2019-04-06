@@ -97,8 +97,8 @@ impl Cron {
     fn log<S: Into<String>>(&mut self, line: S) {
         // https://stackoverflow.com/a/38957921/1687505
         let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
-        let out = format!("{} ~ {}", timestamp, line.into());
-        println!("{}", out);
+        let out = format!("{} ~ {}\n", timestamp, line.into());
+        print!("{}", out);
         self.logfile.write_all(out.as_bytes()).unwrap();
     }
 
